@@ -1,5 +1,5 @@
 use crate::{ImageToolError, Result};
-use exif::{Exif, In, Tag};
+use kamadak_exif::{Exif, In, Tag};
 use image::DynamicImage;
 use std::fs::File;
 use std::io::{BufReader, Cursor};

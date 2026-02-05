@@ -16,9 +16,9 @@ impl MetadataProcessor {
     pub fn strip_metadata(
         &self,
         image: &mut DynamicImage,
-        path: &Path,
+        _path: &Path,
     ) -> Result<()> {
-        log::debug!("Stripping metadata from: {}", path.display());
+        log::debug!("Metadata stripping requested");
         
         // For JPEG images, we need to re-encode to strip metadata
         // The image crate automatically strips most metadata when re-encoding
@@ -52,44 +52,50 @@ impl MetadataProcessor {
 
     pub fn print_metadata(&self, exif: &Exif) -> String {
         let mut output = String::new();
-        output.push_str("--- EXIF Metadata ---\n");
+        output.push_str("=== EXIF Metadata ===\n");
+
+        let common_fields = vec![
+            (Tag::ImageDescription, "Description"),
+            (Tag::Make, "Camera Make"),
+            (Tag::Model, "Camera Model"),
+            (Tag::DateTime, "Date/Time"),
+            (Tag::DateTimeOriginal, "Original Date/Time"),
+            (Tag::DateTimeDigitized, "Digitized Date/Time"),
+            (Tag::ExposureTime, "Exposure Time"),
+            (Tag::FNumber, "Aperture"),
+            (Tag::FocalLength, "Focal Length"),
+            (Tag::PhotographicSensitivity, "ISO"),
+            (Tag::ExposureProgram, "Exposure Program"),
+            (Tag::MeteringMode, "Metering Mode"),
+            (Tag::Flash, "Flash"),
+            (Tag::WhiteBalance, "White Balance"),
+            (Tag::Orientation, "Orientation"),
+            (Tag::XResolution, "X Resolution"),
+            (Tag::YResolution, "Y Resolution"),
+            (Tag::Software, "Software"),
+            (Tag::Artist, "Artist"),
+            (Tag::Copyright, "Copyright"),
+            (Tag::GPSLatitude, "GPS Latitude"),
+            (Tag::GPSLongitude, "GPS Longitude"),
+            (Tag::GPSAltitude, "GPS Altitude"),
+        ];
 
         for field in exif.fields() {
-            let value = format!(
-                "{}: {}",
-                field.tag,
-                field.display_value().with_unit(exif)
-            );
-            output.push_str(&value);
-            output.push('\n');
-
-            // Common fields with better formatting
-            match field.tag {
-                Tag::ImageDescription => {
-                    output.push_str(&format!("  Description: {}\n", field.display_value()));
+            // Check if this is a common field
+            let mut found = false;
+            for (tag, label) in &common_fields {
+                if field.tag == *tag {
+                    let value = field.display_value().with_unit(exif).to_string();
+                    output.push_str(&format!("{:25}: {}\n", label, value));
+                    found = true;
+                    break;
                 }
-                Tag::Make => {
-                    output.push_str(&format!("  Camera Make: {}\n", field.display_value()));
-                }
-                Tag::Model => {
-                    output.push_str(&format!("  Camera Model: {}\n", field.display_value()));
-                }
-                Tag::DateTime => {
-                    output.push_str(&format!("  Date Time: {}\n", field.display_value()));
-                }
-                Tag::ExposureTime => {
-                    output.push_str(&format!("  Exposure: {}\n", field.display_value()));
-                }
-                Tag::FNumber => {
-                    output.push_str(&format!("  Aperture: f/{}\n", field.display_value()));
-                }
-                Tag::FocalLength => {
-                    output.push_str(&format!("  Focal Length: {}mm\n", field.display_value()));
-                }
-                Tag::IsoSpeedRatings => {
-                    output.push_str(&format!("  ISO: {}\n", field.display_value()));
-                }
-                _ => {}
+            }
+            
+            // If not a common field, show it in a general section
+            if !found {
+                let value = field.display_value().with_unit(exif).to_string();
+                output.push_str(&format!("{:25}: {}\n", field.tag.to_string(), value));
             }
         }
 
@@ -105,20 +111,104 @@ impl MetadataProcessor {
                 | Tag::Make
                 | Tag::Model
                 | Tag::DateTime
+                | Tag::DateTimeOriginal
+                | Tag::DateTimeDigitized
                 | Tag::ExposureTime
                 | Tag::FNumber
                 | Tag::FocalLength
-                | Tag::IsoSpeedRatings => {
-                    metadata.push((
-                        field.tag.to_string(),
-                        field.display_value().to_string(),
-                    ));
+                | Tag::PhotographicSensitivity
+                | Tag::ExposureProgram
+                | Tag::MeteringMode
+                | Tag::Flash
+                | Tag::WhiteBalance
+                | Tag::Orientation
+                | Tag::XResolution
+                | Tag::YResolution
+                | Tag::Software
+                | Tag::Artist
+                | Tag::Copyright => {
+                    let value = field.display_value().with_unit(exif).to_string();
+                    metadata.push((field.tag.to_string(), value));
                 }
                 _ => {}
             }
         }
 
         metadata
+    }
+
+    pub fn extract_gps_coordinates(&self, exif: &Exif) -> Option<(f64, f64, Option<f64>)> {
+        let lat = exif.get_field(Tag::GPSLatitude, In::PRIMARY)?;
+        let lat_ref = exif.get_field(Tag::GPSLatitudeRef, In::PRIMARY)?;
+        let lon = exif.get_field(Tag::GPSLongitude, In::PRIMARY)?;
+        let lon_ref = exif.get_field(Tag::GPSLongitudeRef, In::PRIMARY)?;
+        let alt = exif.get_field(Tag::GPSAltitude, In::PRIMARY);
+        let alt_ref = exif.get_field(Tag::GPSAltitudeRef, In::PRIMARY);
+
+        let latitude = self.degrees_to_decimal(lat, lat_ref)?;
+        let longitude = self.degrees_to_decimal(lon, lon_ref)?;
+        let altitude = alt.and_then(|a| {
+            let value = a.value.get_rational(0)?;
+            let mut altitude = value.to_f64();
+            
+            // Check if altitude is below sea level
+            if let Some(ref_field) = alt_ref {
+                if ref_field.value.get_uint(0) == Some(1) {
+                    altitude = -altitude;
+                }
+            }
+            Some(altitude)
+        });
+
+        Some((latitude, longitude, altitude))
+    }
+
+    fn degrees_to_decimal(&self, degrees: &exif::Field, ref_field: &exif::Field) -> Option<f64> {
+        let components = degrees.value.as_rational()?;
+        if components.len() < 3 {
+            return None;
+        }
+
+        let deg = components[0].to_f64();
+        let min = components[1].to_f64();
+        let sec = components[2].to_f64();
+
+        let decimal = deg + (min / 60.0) + (sec / 3600.0);
+
+        // Apply reference (N/S, E/W)
+        let ref_value = ref_field.value.get_ascii_string()?;
+        match ref_value.as_slice() {
+            b"S" | b"W" => Some(-decimal),
+            _ => Some(decimal),
+        }
+    }
+
+    pub fn get_camera_info(&self, exif: &Exif) -> Option<(String, String)> {
+        let make = exif.get_field(Tag::Make, In::PRIMARY)
+            .and_then(|f| f.value.display_as(f.tag).to_string().ok());
+        let model = exif.get_field(Tag::Model, In::PRIMARY)
+            .and_then(|f| f.value.display_as(f.tag).to_string().ok());
+
+        match (make, model) {
+            (Some(m), Some(modl)) => Some((m, modl)),
+            _ => None,
+        }
+    }
+
+    pub fn get_exposure_info(&self, exif: &Exif) -> Option<(String, String, String, String)> {
+        let exposure_time = exif.get_field(Tag::ExposureTime, In::PRIMARY)
+            .and_then(|f| f.value.display_as(f.tag).to_string().ok());
+        let aperture = exif.get_field(Tag::FNumber, In::PRIMARY)
+            .and_then(|f| f.value.display_as(f.tag).to_string().ok());
+        let iso = exif.get_field(Tag::IsoSpeedRatings, In::PRIMARY)
+            .and_then(|f| f.value.display_as(f.tag).to_string().ok());
+        let focal_length = exif.get_field(Tag::FocalLength, In::PRIMARY)
+            .and_then(|f| f.value.display_as(f.tag).to_string().ok());
+
+        match (exposure_time, aperture, iso, focal_length) {
+            (Some(et), Some(ap), Some(i), Some(fl)) => Some((et, ap, i, fl)),
+            _ => None,
+        }
     }
 }
 

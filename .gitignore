@@ -1,0 +1,48 @@
+# Rust build output
+/target/
+
+# Cargo lockfile
+# Keep Cargo.lock for applications, ignore for libraries if desired
+# Uncomment next line if this is a library crate:
+# Cargo.lock
+
+# Backup files
+**/*.rs.bk
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Linux temp files
+*~
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# Coverage / profiling
+*.profraw
+*.gcda
+*.gcno
+*.lcov
+
+# Rust analyzer cache
+.rust-analyzer/
+
+# direnv
+.direnv/
+
+# Temporary test binaries
+/tests/tmp/

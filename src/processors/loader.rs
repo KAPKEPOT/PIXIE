@@ -78,8 +78,8 @@ impl Loader {
     }
 
     pub fn detect_format(&self, path: &Path) -> Result<ImageFormat> {
-        let format = ImageFormat::from_path(path)
-            .map_err(|e| ImageToolError::ProcessingError(format!("Failed to detect format: {}", e)))?;
+        let format = image::ImageFormat::from_path(path)
+            .map_err(|_| ImageToolError::ProcessingError(format!("Failed to detect format for: {}", path.display())))?;
         
         Ok(format)
     }

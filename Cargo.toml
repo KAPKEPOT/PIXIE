@@ -3,11 +3,12 @@ name = "pixie"
 version = "0.1.0"
 edition = "2021"
 description = "Fast image resizer and optimizer in Rust"
-authors = ["Your Name"]
+authors = ["KAPKEPOT"]
 license = "MIT"
 
 [dependencies]
-image = "0.24"
+image = { version = "0.25", features = ["jpeg", "png", "webp", "tiff", "gif", "bmp"] }
+//image = "0.24"
 imageproc = "0.23"
 rayon = "1.10"
 kamadak-exif = "0.6.1"
@@ -16,8 +17,9 @@ walkdir = "2.5"
 log = "0.4"
 env_logger = "0.11"
 indicatif = "0.17"
-anyhow = "1.0"  # For better error handling
-thiserror = "1.0"  # For custom error types
+anyhow = "1.0"  
+thiserror = "1.0"
+oxipng = "9.0"  
 
 [dev-dependencies]
 tempfile = "3.10"

@@ -209,25 +209,28 @@ impl MetadataProcessor {
             let display = f.value.display_as(f.tag);
             Some(format!("{}", display))
         });
-    let aperture = exif.get_field(Tag::FNumber, In::PRIMARY)
-        .and_then(|f| {
-            let display = f.value.display_as(f.tag);
-            Some(format!("{}", display))
-        });
-    let iso = exif.get_field(Tag::PhotographicSensitivity, In::PRIMARY)
-        .and_then(|f| {
-            let display = f.value.display_as(f.tag);
-            Some(format!("{}", display))
-        });
-    let focal_length = exif.get_field(Tag::FocalLength, In::PRIMARY)
-        .and_then(|f| {
-            let display = f.value.display_as(f.tag);
-            Some(format!("{}", display))
-        });
-
-    match (exposure_time, aperture, iso, focal_length) {
-        (Some(et), Some(ap), Some(i), Some(fl)) => Some((et, ap, i, fl)),
-        _ => None,
+        let aperture = exif.get_field(Tag::FNumber, In::PRIMARY)
+            .and_then(|f| {
+                let display = f.value.display_as(f.tag);
+                Some(format!("{}", display))
+            });
+            
+            let iso = exif.get_field(Tag::PhotographicSensitivity, In::PRIMARY)
+                .and_then(|f| {
+                let display = f.value.display_as(f.tag);
+                Some(format!("{}", display))
+            });
+            
+            let focal_length = exif.get_field(Tag::FocalLength, In::PRIMARY)
+                .and_then(|f| {
+                let display = f.value.display_as(f.tag);
+                Some(format!("{}", display))
+            });
+            
+            match (exposure_time, aperture, iso, focal_length) {
+                (Some(et), Some(ap), Some(i), Some(fl)) => Some((et, ap, i, fl)),
+        _ => None,          
+         }
     }
 }
 

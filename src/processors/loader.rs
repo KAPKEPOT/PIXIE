@@ -1,6 +1,6 @@
 // pixie/src/processors/loader.rs
 use crate::core::{ImageToolError, Result};
-use image::{DynamicImage, ImageFormat, ImageReader};
+use image::{DynamicImage, ImageFormat, ImageReader, GenericImageView};
 use std::path::Path;
 
 #[derive(Clone)]

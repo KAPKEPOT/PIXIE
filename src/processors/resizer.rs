@@ -1,6 +1,6 @@
 // pixie/src/processors/resizer.rs
 use crate::core::{ImageToolError, ResizeAlgorithm, Result};
-use image::{DynamicImage, imageops::FilterType};
+use image::{DynamicImage, imageops::FilterType, GenericImageView};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ResizeMode {
